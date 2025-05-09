@@ -1,172 +1,161 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <meta name="description" content="">
-    <meta name="author" content="">
-    <link rel="icon" href="../../../../favicon.ico">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Connor Young</title>
+  <link rel="stylesheet" type="text/css" href="../resources/css/default_golf.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
 
-    <title>Connor Young</title>
+<?php include 'header.php'; ?>
 
-    <link rel="stylesheet" type="text/css" href="../resources/css/default_golf.css">
+<div class='full-page-container'>
+  <br>
+  <h1 class='text-3xl text-center'>Events (All Tours)</h1>
+  <br>
 
-    <script src="https://cdn.tailwindcss.com"></script>
-  </head>
-  <body>
+  <?php 
+  include('golf_db_connection.php');
+  ini_set('display_errors', 1);
+  ini_set('display_startup_errors', 1);
+  error_reporting(E_ALL);
 
-    <?php include 'header.php'; ?>
+  // Get filters
+  $seasonFilter = isset($_GET['season']) ? trim($_GET['season']) : '';
+  $tourFilter = isset($_GET['tour']) ? trim($_GET['tour']) : '';
+  $courseNameFilter = isset($_GET['course_name']) ? trim($_GET['course_name']) : '';
+  $eventNameFilter = isset($_GET['event_name']) ? trim($_GET['event_name']) : '';
 
-    <div class='full-page-container'>
+  // Pagination
+  $limit = 25;
+  $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+  $offset = ($page - 1) * $limit;
 
-        <p class='text-sm'> (A) denotes amateur status. </p>
+  // Build filter conditions for reuse
+  function buildWhereClause($conn, $season, $course, $event) {
+    $clauses = [];
+    if ($season !== '') $clauses[] = "season LIKE '%" . mysqli_real_escape_string($conn, $season) . "%'";
+    if ($course !== '') $clauses[] = "course_name LIKE '%" . mysqli_real_escape_string($conn, $course) . "%'";
+    if ($event !== '')  $clauses[] = "event_name LIKE '%" . mysqli_real_escape_string($conn, $event) . "%'";
+    return $clauses ? 'WHERE ' . implode(' AND ', $clauses) : '';
+  }
 
+  $whereClause = buildWhereClause($conn, $seasonFilter, $courseNameFilter, $eventNameFilter);
 
-    <?php 
-    include('golf_db_connection.php');
-    ini_set('display_errors', 1);
-    ini_set('display_startup_errors', 1);
-    error_reporting(E_ALL);
+  // Fetch data from all four tours
+  $tours = [
+    'PGA' => 'pga_schedule',
+    'Euro' => 'euro_schedule',
+    'KFT' => 'kft_schedule',
+    'LIV' => 'liv_schedule',
+  ];
 
+  $allResults = [];
 
-    // PLAYERS 
+    $queries = [];
 
-    // Pagination
-    // Pagination settings
-    $limit = 50; // number of rows per page
-    $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-    if ($page < 1) $page = 1;
-    $offset = ($page - 1) * $limit;
-
-    // Get total rows to calculate total pages
-    $total_sql = "SELECT COUNT(*) as total FROM pga_schedule";
-    $total_result = mysqli_query($conn, $total_sql);
-    $total_row = mysqli_fetch_assoc($total_result);
-    $total_rows = $total_row['total'];
-    $total_pages = ceil($total_rows / $limit);
-    
-    // Build and execute SQL query with pagination
-
-    $sql = "SELECT * FROM pga_schedule ORDER BY start_date DESC LIMIT $limit OFFSET $offset"; // need to add other tours and add column to label tour
-    $result = mysqli_query($conn, $sql);
-    if (mysqli_num_rows($result) > 0) {
-
-        ?>
-        <div class='overflow-x-auto'>
-        <table class='default-zebra-table text-white w-4/5 mx-auto'>
-            <thead>
-                <tr>
-                    <th>Season</th>
-                    <th>Course Name</th>
-                    <th>Course Key</th>
-                    <th>Event ID</th>
-                    <th>Event Name</th>
-                    <th>Latitude</th>
-                    <th>Longitude</th>
-                    <!-- <th>Calc Location</th> -->
-                    <th>Start Date</th>
-                </tr>
-            </thead>
-            <tbody>
-
-        <?php
-        while($row = mysqli_fetch_assoc($result)) {
-            $season = $row['season'];
-            $course_name = $row['course_name'];
-            $course_key = $row['course_key'];
-            $event_id = $row['event_id'];
-            $event_name = $row['event_name'];
-
-            $latitude = $row['latitude'];
-            $longitude = $row['longitude'];
-            // $calcLocation = getaddress($latitude, $longitude);
-
-            $start_date = $row['start_date'];
-
-            echo "<tr>";
-            echo "<td>" . $season . "</td>";
-            echo "<td>" . $course_name . "</td>";
-            echo "<td>" . $course_key . "</td>";
-            echo "<td>" . $event_id . "</td>";
-            echo "<td>" . $event_name . "</td>";
-            echo "<td>" . $latitude . "</td>";
-            echo "<td>" . $longitude . "</td>";
-            // echo "<td>" . $calcLocation . "</td>";
-            echo "<td>" . $start_date . "</td>";
-            echo "</tr>";
-        }
-
-            echo "</tbody>";
-            echo "</table>";
-
-            // Pagination controls
-            //Pagination Controls - creates controls like "1 2 .. 10 11 12 .. 21 22"
-            echo "<div class='mt-4 text-white flex flex-wrap items-center justify-center gap-2'>";
-
-            if ($page > 1) {
-                echo "<a href='?page=" . ($page - 1) . "' class='px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded'>Prev</a>";
-            }
-
-            // Function to simplify link generation
-            function page_link($i, $current) {
-                $base = "px-3 py-1 rounded ";
-                $style = $i == $current ? "bg-green-700 font-bold" : "bg-gray-700 hover:bg-gray-600";
-                return "<a href='?page=$i' class='$base $style'>$i</a>";
-            }
-
-            // Show first 2 pages always
-            if ($total_pages <= 10) {
-                for ($i = 1; $i <= $total_pages; $i++) {
-                    echo page_link($i, $page);
-                }
-            } else {
-                // Always show first 2 pages
-                for ($i = 1; $i <= 2; $i++) {
-                    echo page_link($i, $page);
-                }
-
-                if ($page > 5) {
-                    echo "<span class='px-2'>...</span>";
-                }
-
-                // Show 2 pages before current, current, 2 after
-                $start = max(3, $page - 2);
-                $end = min($total_pages - 2, $page + 2);
-
-                for ($i = $start; $i <= $end; $i++) {
-                    echo page_link($i, $page);
-                }
-
-                if ($page < $total_pages - 4) {
-                    echo "<span class='px-2'>...</span>";
-                }
-
-                // Always show last 2 pages
-                for ($i = $total_pages - 1; $i <= $total_pages; $i++) {
-                    echo page_link($i, $page);
-                }
-            }
-
-            if ($page < $total_pages) {
-                echo "<a href='?page=" . ($page + 1) . "' class='px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded'>Next</a>";
-            }
-
-            echo "</div>";
-            echo "<br>";
-
-    } else {
-        echo "0 results";
+    foreach ($tours as $tourName => $tableName) {
+    if ($tourFilter === '' || strtolower($tourFilter) === strtolower($tourName)) {
+        $queries[] = "SELECT *, '$tourName' AS tour FROM $tableName $whereClause";
     }
-    ?>
+    }
+
+    if (!empty($queries)) {
+    $unionSql = implode(" UNION ALL ", $queries) . " ORDER BY start_date DESC LIMIT $limit OFFSET $offset";
+    $result = mysqli_query($conn, $unionSql);
+    while ($row = mysqli_fetch_assoc($result)) {
+        $allResults[] = $row;
+    }
+    }
 
 
+  ?>
 
-    </div>
+  <div class='flex flex-wrap max-w-[85%] mx-auto'>
+    <form id='filterForm' method="GET" class='flex flex-wrap max-w-[85%]'>
+      <p class='mt-2 mr-5'>Filter by:</p>
+      <input type="text" name="season" value="<?= htmlspecialchars($seasonFilter) ?>" class="border rounded px-3 py-2 text-black mr-2" style='border-color: #0D2818' placeholder="Season">
+      <input type="text" name="tour" value="<?= htmlspecialchars($tourFilter) ?>" class="border rounded px-3 py-2 text-black mr-2" style='border-color: #0D2818' placeholder="Tour">
+      <input type="text" name="course_name" value="<?= htmlspecialchars($courseNameFilter) ?>" class="border rounded px-3 py-2 text-black mr-2" style='border-color: #0D2818' placeholder="Course Name">
+      <input type="text" name="event_name" value="<?= htmlspecialchars($eventNameFilter) ?>" class="border rounded px-3 py-2 text-black mr-2" style='border-color: #0D2818' placeholder="Event Name">
+    </form>
+  </div>
 
+  <br>
 
-    <?php mysqli_close($conn);
+  <?php if (!empty($allResults)) : ?>
+  <div class='overflow-x-auto'>
+    <table class='default-zebra-table text-white w-4/5 mx-auto'>
+      <thead>
+        <tr>
+          <th>Season</th>
+          <th>Tour</th>
+          <th>Course Name</th>
+          <th>Course Key</th>
+          <th>Event ID</th>
+          <th>Event Name</th>
+          <th>Latitude</th>
+          <th>Longitude</th>
+          <th>Start Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php foreach ($allResults as $row): ?>
+        <tr>
+          <td><?= htmlspecialchars($row['season']) ?></td>
+          <td><?= htmlspecialchars($row['tour']) ?></td>
+          <td><?= htmlspecialchars($row['course_name']) ?></td>
+          <td><?= htmlspecialchars($row['course_key']) ?></td>
+          <td><?= htmlspecialchars($row['event_id']) ?></td>
+          <td><?= htmlspecialchars($row['event_name']) ?></td>
+          <td><?= htmlspecialchars($row['latitude']) ?></td>
+          <td><?= htmlspecialchars($row['longitude']) ?></td>
+          <td><?= htmlspecialchars($row['start_date']) ?></td>
+        </tr>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+  </div>
+  <br>
 
-    include 'footer.php'; ?>
+  <!-- Pagination (can be refined to include total count across all tours if needed) -->
+  <div class='mt-4 text-white flex flex-wrap items-center justify-center gap-2'>
+    <?php if ($page > 1): ?>
+      <a href="?page=<?= $page - 1 ?>" class='px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded'>Prev</a>
+    <?php endif; ?>
+    <a href="?page=<?= $page ?>" class='px-3 py-1 bg-green-700 font-bold rounded'><?= $page ?></a>
+    <a href="?page=<?= $page + 1 ?>" class='px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded'>Next</a>
+  </div>
+  <br>
 
-  </body>
+  <?php else: ?>
+    <p class="text-white text-center">No results found.</p>
+  <?php endif; ?>
+
+</div>
+
+<?php 
+mysqli_close($conn);
+include 'footer.php'; 
+?>
+
+<!-- Auto-submit filtering form script -->
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const form = document.getElementById('filterForm');
+    let typingTimer;
+    const doneTypingInterval = 400;
+
+    form.querySelectorAll('input[type="text"]').forEach(input => {
+      input.addEventListener('input', function () {
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => form.submit(), doneTypingInterval);
+      });
+    });
+  });
+</script>
+
+</body>
 </html>
