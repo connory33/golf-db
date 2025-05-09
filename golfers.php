@@ -113,12 +113,12 @@
                     // Create the sort link and apply CSS class based on state
                     function sort_link($label, $column, $currentSort, $currentOrder) {
                         $newOrder = ($currentSort == $column && $currentOrder == 'asc') ? 'desc' : 'asc';
-                        $arrow = $currentSort == $column ? ($currentOrder == 'asc' ? ' ↑' : ' ↓') : '';
+                        // $arrow = $currentSort == $column ? ($currentOrder == 'asc' ? ' ↑' : ' ↓') : '';
                         $query = $_GET;
                         $query['sort_by'] = $column;
                         $query['order'] = $newOrder;
                         $url = '?' . http_build_query($query);
-                        return "<a href='$url' class='hover:underline'>$label$arrow</a>";
+                        return "<a href='$url' class='hover:underline'>$label</a>";
                     }
 
                     function sort_class($column, $currentSort, $currentOrder) {
