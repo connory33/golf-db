@@ -23,6 +23,8 @@
     <br>
 
     <?php 
+
+    
     include('golf_db_connection.php');
     ini_set('display_errors', 1);
     ini_set('display_startup_errors', 1);
@@ -85,6 +87,14 @@
             OFFSET $offset";
 
     $result = mysqli_query($conn, $sql);
+    $row = mysqli_fetch_assoc($result);
+    $stats_last_update = $row['last_updated_stats'];
+    $ranks_last_update = $row['last_updated_estimate_ranks'];
+    mysqli_data_seek($result, 0); // Reset result pointer to fetch all rows
+    echo "<div class='text-center'>";
+    echo "<p class='text-sm'>Stats Last Update: " . htmlspecialchars($stats_last_update) . "</p>";
+    echo "<p class='text-sm mb-4'>Ranks Last Update: " . htmlspecialchars($ranks_last_update) . "</p>";
+    echo "</div>";
 
     if (mysqli_num_rows($result) > 0) {
         ?>
@@ -134,7 +144,6 @@
                         <th class="<?= sort_class('datagolf_rank', $sortBy, $order) ?>"><?= sort_link('DG Rank', 'datagolf_rank', $sortBy, $order) ?></th>
                         <th class="<?= sort_class('dg_skill_estimate', $sortBy, $order) ?>"><?= sort_link('DG Skill Estimate', 'dg_skill_estimate', $sortBy, $order) ?></th>
                         <th class="<?= sort_class('owgr_rank', $sortBy, $order) ?>"><?= sort_link('OWGR Rank', 'owgr_rank', $sortBy, $order) ?></th>
-                        <th class="<?= sort_class('last_updated_estimate_ranks', $sortBy, $order) ?>"><?= sort_link('Last Updated (Ranks)', 'last_updated_estimate_ranks', $sortBy, $order) ?></th>
                         <th class="<?= sort_class('driving_accuracy', $sortBy, $order) ?>"><?= sort_link('Driving Accuracy', 'driving_accuracy', $sortBy, $order) ?></th>
                         <th class="<?= sort_class('driving_distance', $sortBy, $order) ?>"><?= sort_link('Driving Distance', 'driving_distance', $sortBy, $order) ?></th>
                         <th class="<?= sort_class('sg_approach', $sortBy, $order) ?>"><?= sort_link('SG Approach', 'sg_approach', $sortBy, $order) ?></th>
@@ -142,7 +151,6 @@
                         <th class="<?= sort_class('sg_off_the_tee', $sortBy, $order) ?>"><?= sort_link('SG Off the Tee', 'sg_off_the_tee', $sortBy, $order) ?></th>
                         <th class="<?= sort_class('sg_putting', $sortBy, $order) ?>"><?= sort_link('SG Putting', 'sg_putting', $sortBy, $order) ?></th>
                         <th class="<?= sort_class('sg_total', $sortBy, $order) ?>"><?= sort_link('SG Total', 'sg_total', $sortBy, $order) ?></th>
-                        <th class="<?= sort_class('last_updated_stats', $sortBy, $order) ?>"><?= sort_link('Last Updated (Stats)', 'last_updated_stats', $sortBy, $order) ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -165,7 +173,6 @@
                 $dg_skill_estimate = $row['dg_skill_estimate'];
                 $owgr_rank = $row['owgr_rank'];
                 $primary_tour = $row['primary_tour'];
-                $last_updated_ranks = $row['last_updated_estimate_ranks'];
 
                 $driving_accuracy = $row['driving_accuracy'];
                 $driving_dist = $row['driving_distance'];
@@ -174,12 +181,11 @@
                 $sg_off_the_tee = $row['sg_off_the_tee'];
                 $sg_putting = $row['sg_putting'];
                 $sg_total = $row['sg_total'];
-                $last_updated_stats = $row['last_updated_stats'];
 
 
                 echo "<tr>";
                 echo "<td>" . $dg_id . "</td>";
-                echo "<td>" . $name . "</td>";
+                echo "<td><a href='golfer.php?dg_id=" . $dg_id . "' class='text-blue-700 hover:underline'>" . $name . "</a></td>";
                 echo "<td>" . $country_code . "</td>";
                 echo "<td>" . $primary_tour . "</td>";
 
@@ -187,9 +193,7 @@
                     echo "<td>" . $datagolf_rank . "</td>";
                     echo "<td>" . number_format($dg_skill_estimate, 3) . "</td>";
                     echo "<td>" . $owgr_rank . "</td>";
-                    echo "<td>" . $last_updated_ranks . "</td>";
                 } else {
-                    echo "<td>". Null . "</td>";
                     echo "<td>". Null . "</td>";
                     echo "<td>". Null . "</td>";
                     echo "<td>". Null . "</td>";
@@ -203,9 +207,7 @@
                     echo "<td>" . $sg_off_the_tee . "</td>";
                     echo "<td>" . $sg_putting . "</td>";
                     echo "<td>" . $sg_total . "</td>";
-                    echo "<td>" . $last_updated_stats . "</td>";
                 } else {
-                    echo "<td>". Null . "</td>";
                     echo "<td>". Null . "</td>";
                     echo "<td>". Null . "</td>";
                     echo "<td>". Null . "</td>";

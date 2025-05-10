@@ -22,6 +22,42 @@
   ini_set('display_startup_errors', 1);
   error_reporting(E_ALL);
 
+  function getLocationFromCoords($latitude, $longitude) {
+                // Make sure to set a unique user agent as required by OSM's usage policy
+                $userAgent = 'YourApp/1.0 (your@email.com)';
+                
+                $url = "https://nominatim.openstreetmap.org/reverse?format=json&lat={$latitude}&lon={$longitude}&zoom=18&addressdetails=1";
+                
+                $ch = curl_init();
+                curl_setopt($ch, CURLOPT_URL, $url);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+                curl_setopt($ch, CURLOPT_USERAGENT, $userAgent);
+                
+                $response = curl_exec($ch);
+                curl_close($ch);
+                
+                $result = json_decode($response, true);
+                
+                if (isset($result['address'])) {
+                    $address = $result['address'];
+                    
+                    // Extract location components
+                    $city = $address['city'] ?? $address['town'] ?? $address['village'] ?? $address['hamlet'] ?? '';
+                    $state = $address['state'] ?? $address['county'] ?? '';
+                    $country = $address['country'] ?? '';
+                    
+                    return [
+                        'city' => $city,
+                        'state' => $state,
+                        'country' => $country,
+                        'full_address' => $result['display_name'] ?? '',
+                        'raw_data' => $address
+                    ];
+                }
+                
+                return null;
+            }
+
   // Get filters
   $seasonFilter = isset($_GET['season']) ? trim($_GET['season']) : '';
   $tourFilter = isset($_GET['tour']) ? trim($_GET['tour']) : '';
@@ -44,31 +80,15 @@
 
   $whereClause = buildWhereClause($conn, $seasonFilter, $courseNameFilter, $eventNameFilter);
 
-  // Fetch data from all four tours
-  $tours = [
-    'PGA' => 'pga_schedule',
-    'Euro' => 'euro_schedule',
-    'KFT' => 'kft_schedule',
-    'LIV' => 'liv_schedule',
-  ];
-
   $allResults = [];
 
-    $queries = [];
 
-    foreach ($tours as $tourName => $tableName) {
-    if ($tourFilter === '' || strtolower($tourFilter) === strtolower($tourName)) {
-        $queries[] = "SELECT *, '$tourName' AS tour FROM $tableName $whereClause";
-    }
-    }
-
-    if (!empty($queries)) {
-    $unionSql = implode(" UNION ALL ", $queries) . " ORDER BY start_date DESC LIMIT $limit OFFSET $offset";
-    $result = mysqli_query($conn, $unionSql);
+    $sql = "SELECT * FROM all_tours_events $whereClause ORDER BY start_date DESC LIMIT $limit OFFSET $offset";
+    $result = mysqli_query($conn, $sql);
     while ($row = mysqli_fetch_assoc($result)) {
         $allResults[] = $row;
     }
-    }
+    
 
 
   ?>
@@ -93,11 +113,11 @@
           <th>Season</th>
           <th>Tour</th>
           <th>Course Name</th>
-          <th>Course Key</th>
-          <th>Event ID</th>
+          <!-- <th>Course Key</th> -->
+          <!-- <th>Event ID</th> -->
           <th>Event Name</th>
-          <th>Latitude</th>
-          <th>Longitude</th>
+          <th>Location</th>
+          <!-- <th>Longitude</th> -->
           <th>Start Date</th>
         </tr>
       </thead>
@@ -105,14 +125,42 @@
         <?php foreach ($allResults as $row): ?>
         <tr>
           <td><?= htmlspecialchars($row['season']) ?></td>
+          <?php
+          if ($row['tour'] == 'pga') {
+          $row['tour'] = 'PGA';
+        } elseif ($row['tour'] == 'euro') {
+          $row['tour'] = 'European';
+        } elseif ($row['tour'] == 'kft') {
+          $row['tour'] = 'KFT';
+        } elseif ($row['tour'] == 'liv') {
+          $row['tour'] = 'LIV';
+        }
+        ?>
           <td><?= htmlspecialchars($row['tour']) ?></td>
           <td><?= htmlspecialchars($row['course_name']) ?></td>
-          <td><?= htmlspecialchars($row['course_key']) ?></td>
-          <td><?= htmlspecialchars($row['event_id']) ?></td>
-          <td><?= htmlspecialchars($row['event_name']) ?></td>
-          <td><?= htmlspecialchars($row['latitude']) ?></td>
-          <td><?= htmlspecialchars($row['longitude']) ?></td>
-          <td><?= htmlspecialchars($row['start_date']) ?></td>
+          <td><a href="https://connoryoung.com/event.php?event_id=<?= htmlspecialchars($row['event_id']) ?>" class='text-blue-700'><?= htmlspecialchars($row['event_name']) ?></a></td>
+          <!-- Convert latitude and longitude to city, state/country -->
+            <?php
+            // $latitude = htmlspecialchars($row['latitude']);
+            // $longitude = htmlspecialchars($row['longitude']);
+            $lat = $row['latitude'];
+            $long = $row['longitude'];
+            $location = getLocationFromCoords($lat, $long);
+            if ($location) {
+                if ($location['city'] AND $location['state'] AND $location['country']) {
+                echo "<td>" . $location['city'] . ", " . $location['state'] . " (" . $location['country'] . ")</td>";
+                } elseif ($location['state'] AND $location['country']) {
+                echo "<td>" . $location['state'] . " (" . $location['country'] . ")</td>";
+                } elseif ($location['city'] AND $location['country']) {
+                echo "<td>" . $location['city'] . " (" . $location['country'] . ")</td>";
+                } else {
+                echo "<td>Unknown</td>";
+                }
+            } else {
+                echo "<td>Unknown</td>";
+            }
+            ?>
+          <td><?= htmlspecialchars(date('m/d/Y', strtotime($row['start_date']))) ?></td>
         </tr>
         <?php endforeach; ?>
       </tbody>
